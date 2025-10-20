@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- App Name -->
+    <string name="app_name">轻映</string>
+
+    <!-- App Shortcuts -->
+    <string name="shortcut_settings_short_label">设置</string>
+    <string name="shortcut_settings_long_label">打开应用设置</string>
+
+    <!-- Main Activity -->
+    <string name="searching_devices">正在搜索…</string>
+    <string name="device_selected">已选择: %1$s</string>
+    <string name="permissions_needed">需要媒体权限才能选择文件。</string>
+    <string name="media_type_choice_title">选择媒体类型</string>
+
+    <!-- Media Type Choices -->
+    <string name="media_type_image_video">图片 / 视频</string>
+    <string name="media_type_music">音乐</string>
+    <string name="dialog_cancel">取消</string>
+
+    <!-- Casting Status -->
+    <string name="cast_success">投屏成功！</string>
+    <string name="cast_failed">播放失败: %1$s</string>
+    <string name="set_uri_failed">设置URI失败: %1$s</string>
+    <string name="device_not_support_avtransport">设备不支持AVTransport。</string>
+    <string name="failed_to_get_ip">无法获取IP地址，请检查Wi-Fi连接。</string>
+    <string name="select_a_device_first">请先选择一个设备。</string>
+
+    <!-- Settings & About -->
+    <string name="settings_category_appearance">外观</string>
+    <string name="settings_theme_color_title">主题颜色</string>
+    <string name="settings_theme_color_summary">选择应用的主题颜色</string>
+
+    <string name="settings_category_about">关于</string>
+    <string name="settings_about_title">关于 轻映</string>
+    <string name="about_version">版本 1.0</string>
+    <string name="about_description">一个简单的 DLNA 投屏客户端。</string>
+    
+    <!-- Arrays for Theme Picker -->
+    <string-array name="theme_color_entries">
+        <item>沉稳 (棕色)</item>
+        <item>默认 (蓝色)</item>
+        <item>活力 (绿色)</item>
+        <item>优雅 (紫色)</item>
+    </string-array>
+</resources>

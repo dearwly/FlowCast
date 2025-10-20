@@ -1,0 +1,48 @@
+
+<resources>
+    <!-- App Name -->
+    <string name="app_name">FlowCast</string>
+
+    <!-- App Shortcuts -->
+    <string name="shortcut_settings_short_label">Settings</string>
+    <string name="shortcut_settings_long_label">Open App Settings</string>
+
+    <!-- Main Activity -->
+    <string name="searching_devices">Searching…</string>
+    <string name="device_selected">Selected: %1$s</string>
+    <string name="permissions_needed">Media permissions are required to select files.</string>
+    <string name="media_type_choice_title">Select Media Type</string>
+
+    <!-- Media Type Choices -->
+    <string name="media_type_image_video">Image / Video</string>
+    <string name="media_type_music">Music</string>
+    <string name="dialog_cancel">Cancel</string>
+
+    <!-- Casting Status -->
+    <string name="cast_success">Casting successful!</string>
+    <string name="cast_failed">Play failed: %1$s</string>
+    <string name="set_uri_failed">Set URI failed: %1$s</string>
+    <string name="device_not_support_avtransport">Device does not support AVTransport.</string>
+    <string name="failed_to_get_ip">Could not get IP address. Please check Wi-Fi connection.</string>
+    <string name="select_a_device_first">Please select a device first.</string>
+
+    <!-- Settings & About -->
+    <string name="settings_category_appearance">Appearance</string>
+    <string name="settings_theme_color_title">Theme Color</string>
+    <string name="settings_theme_color_summary">Choose the app\'s theme color</string>
+
+    <string name="settings_category_about">About</string>
+    <string name="settings_about_title">About FlowCast</string>
+    <string name="about_version">Version 1.0</string>
+    <string name="about_description">A simple DLNA casting client.</string>
+
+    <!-- Arrays for Theme Picker -->
+    <string-array name="theme_color_entries">
+        <item>Brown (Default)</item>
+        <item>Blue</item>
+        <item>Green</item>
+        <item>Purple</item>
+    </string-array>
+</resources>
+
+  

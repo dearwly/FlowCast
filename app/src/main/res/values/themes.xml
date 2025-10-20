@@ -1,0 +1,77 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Fullscreen Activity -->
+    <style name="Theme.DlnaCaster.Base" parent="Theme.Material3.Light.NoActionBar" />
+
+    <!-- Theme For SettingsActivity / AboutActivity -->
+
+    <style name="Theme.DlnaCaster.Brown.FullScreen" parent="Theme.DlnaCaster.Base">
+        <item name="colorPrimary">@color/brown_light_primary</item>
+        <item name="colorOnPrimary">@color/brown_light_onPrimary</item>
+        <item name="colorSurface">@color/brown_light_surface</item>
+        <item name="colorOnSurface">@color/brown_light_onSurface</item>
+    </style>
+
+    <style name="Theme.DlnaCaster.Green.FullScreen" parent="Theme.DlnaCaster.Base">
+        <item name="colorPrimary">@color/green_light_primary</item>
+        <item name="colorOnPrimary">@color/green_light_onPrimary</item>
+        <item name="colorSurface">@color/green_light_surface</item>
+        <item name="colorOnSurface">@color/green_light_onSurface</item>
+    </style>
+
+    <style name="Theme.DlnaCaster.Blue.FullScreen" parent="Theme.DlnaCaster.Base">
+        <item name="colorPrimary">@color/blue_light_primary</item>
+        <item name="colorOnPrimary">@color/blue_light_onPrimary</item>
+        <item name="colorSurface">@color/blue_light_surface</item>
+        <item name="colorOnSurface">@color/blue_light_onSurface</item>
+    </style>
+
+    <style name="Theme.DlnaCaster.Yellow.FullScreen" parent="Theme.DlnaCaster.Base">
+        <item name="colorPrimary">@color/yellow_light_primary</item>
+        <item name="colorOnPrimary">@color/yellow_light_onPrimary</item>
+        <item name="colorSurface">@color/yellow_light_surface</item>
+        <item name="colorOnSurface">@color/yellow_light_onSurface</item>
+    </style>
+
+    <!-- Theme For MainActivity -->
+
+    <style name="Theme.DlnaCaster.Dialog.Base" parent="Theme.Material3.Light">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:backgroundDimAmount">0.6</item>
+        <item name="android:windowCloseOnTouchOutside">true</item>
+    </style>
+
+    <style name="Theme.DlnaCaster.Brown.Dialog" parent="Theme.DlnaCaster.Dialog.Base">
+        <item name="colorPrimary">@color/brown_light_primary</item>
+        <item name="colorOnPrimary">@color/brown_light_onPrimary</item>
+        <item name="colorSurface">@color/brown_light_surface</item>
+        <item name="colorOnSurface">@color/brown_light_onSurface</item>
+    </style>
+
+    <style name="Theme.DlnaCaster.Green.Dialog" parent="Theme.DlnaCaster.Dialog.Base">
+        <item name="colorPrimary">@color/green_light_primary</item>
+        <item name="colorOnPrimary">@color/green_light_onPrimary</item>
+        <item name="colorSurface">@color/green_light_surface</item>
+        <item name="colorOnSurface">@color/green_light_onSurface</item>
+    </style>
+
+    <style name="Theme.DlnaCaster.Blue.Dialog" parent="Theme.DlnaCaster.Dialog.Base">
+        <item name="colorPrimary">@color/blue_light_primary</item>
+        <item name="colorOnPrimary">@color/blue_light_onPrimary</item>
+        <item name="colorSurface">@color/blue_light_surface</item>
+        <item name="colorOnSurface">@color/blue_light_onSurface</item>
+    </style>
+
+    <style name="Theme.DlnaCaster.Yellow.Dialog" parent="Theme.DlnaCaster.Dialog.Base">
+        <item name="colorPrimary">@color/yellow_light_primary</item>
+        <item name="colorOnPrimary">@color/yellow_light_onPrimary</item>
+        <item name="colorSurface">@color/yellow_light_surface</item>
+        <item name="colorOnSurface">@color/yellow_light_onSurface</item>
+    </style>
+
+</resources>
