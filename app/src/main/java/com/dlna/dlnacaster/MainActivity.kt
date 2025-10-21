@@ -2,6 +2,7 @@ package com.dlna.dlnacaster
 
 import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -62,6 +63,19 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
     private var multicastLock: WifiManager.MulticastLock? = null
     private var latestSelectedDevice: Device<*, *, *>? = null
 
+    private var pendingCastAction: (() -> Unit)? = null
+
+    private val requestNotificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted: Boolean ->
+            if (isGranted) {
+                pendingCastAction?.invoke()
+            } else {
+                Toast.makeText(this, R.string.notification_permissions_needed, Toast.LENGTH_LONG).show()
+                pendingCastAction?.invoke()
+            }
+            pendingCastAction = null
+        }
+
     private val imagePermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
     } else {
@@ -77,42 +91,11 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
     } else {
         arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
-
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<Array<String>>
-
-    private val imagePickerLauncher =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            handleMediaSelection(uri)
-        }
-
-    private val videoPickerLauncher =
-        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
-            handleMediaSelection(uri)
-        }
-
-    private val musicPickerLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                handleMediaSelection(result.data?.data)
-            }
-        }
-
-    private val filePickerLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                handleMediaSelection(result.data?.data)
-            }
-        }
-
-    // 修复点: 只有在 uri 不为 null 时才关闭弹窗
-    private fun handleMediaSelection(uri: Uri?) {
-        if (uri != null) {
-            dismissBottomSheet()
-            latestSelectedDevice?.let { device -> castMedia(uri, device) }
-        } else {
-            Log.d(TAG, "Media selection was cancelled.")
-        }
-    }
+    private val imagePickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? -> handleMediaSelection(uri) }
+    private val videoPickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? -> handleMediaSelection(uri) }
+    private val musicPickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result -> if (result.resultCode == Activity.RESULT_OK) { handleMediaSelection(result.data?.data) } }
+    private val filePickerLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result -> if (result.resultCode == Activity.RESULT_OK) { handleMediaSelection(result.data?.data) } }
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
@@ -129,20 +112,21 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }
     }
 
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
         supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
         setContentView(R.layout.activity_main)
-        Log.d(TAG, "MainActivity onCreate")
+        Log.d(TAG, "MainActivity onCreate - starting fresh.")
 
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             if (permissions.any { it.value }) {
-                Toast.makeText(this, "权限已授予，请重试操作", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, R.string.notification_permissions_success, Toast.LENGTH_SHORT).show()
             } else {
                 Toast.makeText(this, getString(R.string.permissions_needed), Toast.LENGTH_SHORT).show()
             }
         }
-
         window?.let {
             val layoutParams = WindowManager.LayoutParams()
             layoutParams.copyFrom(it.attributes)
@@ -151,19 +135,15 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             layoutParams.gravity = Gravity.CENTER
             it.attributes = layoutParams
         }
-
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         multicastLock = wifiManager.createMulticastLock("dlnacaster-cling-lock").apply {
             setReferenceCounted(true)
             acquire()
         }
-
         setupUI()
-
         Log.d(TAG, "Binding to official Cling Service...")
         val intent = Intent(this, AndroidUpnpServiceImpl::class.java)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
-
         mediaServer = MediaServer(this)
         mediaServer?.start()
     }
@@ -180,13 +160,151 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }
 
         devicesListView.setOnItemClickListener { _, _, position, _ ->
-            val deviceDisplay = deviceListAdapter.getItem(position) ?: return@setOnItemClickListener
-            latestSelectedDevice = deviceDisplay.device
-            Toast.makeText(this, getString(R.string.device_selected, deviceDisplay.device.displayString), Toast.LENGTH_SHORT).show()
+            val clickedDevice = deviceListAdapter.getItem(position)?.device ?: return@setOnItemClickListener
+            val sharedPrefs = getSharedPreferences(PlaybackActivity.CASTING_STATE_PREFS, Context.MODE_PRIVATE)
+            val isCurrentlyCasting = sharedPrefs.getBoolean(PlaybackActivity.KEY_IS_CASTING, false)
+            val castingDeviceUdn = sharedPrefs.getString(PlaybackActivity.KEY_DEVICE_UDN, null)
+
+            if (isCurrentlyCasting && clickedDevice.identity.udn.toString() == castingDeviceUdn) {
+                Log.d(TAG, "Re-entering PlaybackActivity for the current session.")
+                startActivity(Intent(this, PlaybackActivity::class.java))
+            } else {
+                initiateNewCastFlow(clickedDevice)
+            }
+        }
+    }
+
+    private fun initiateNewCastFlow(device: Device<*, *, *>) {
+        latestSelectedDevice = device
+        val isCurrentlyCasting = isCasting()
+
+        if (isCurrentlyCasting) {
+            AlertDialog.Builder(this)
+                .setTitle(R.string.cast_options_dialog_title)
+                .setMessage(R.string.cast_options_dialog_message)
+                .setPositiveButton(R.string.dialog_yes) { _, _ ->
+                    sendCommandToService(PlaybackService.ACTION_STOP)
+                    Toast.makeText(this, R.string.cast_options_dialog_closed, Toast.LENGTH_SHORT).show()
+                    CastOptionsBottomSheet().show(supportFragmentManager, "CastOptionsBottomSheet")
+                }
+                .setNegativeButton(R.string.dialog_no, null)
+                .show()
+        } else {
             CastOptionsBottomSheet().show(supportFragmentManager, "CastOptionsBottomSheet")
         }
     }
 
+    private fun sendCommandToService(action: String) {
+        val intent = Intent(this, PlaybackService::class.java)
+        intent.action = action
+        startService(intent)
+    }
+
+    private fun executeCast(mediaUrl: String, metadata: String, device: Device<*, *, *>, mediaTitle: String) {
+        val castAction = func@{
+            val controlPoint = upnpService?.controlPoint ?: return@func
+            val avTransportService = device.findService(UDAServiceType("AVTransport")) ?: run {
+                Toast.makeText(this, getString(R.string.device_not_support_avtransport), Toast.LENGTH_SHORT).show()
+                return@func
+            }
+
+            val setUriCallback = object : SetAVTransportURI(avTransportService, mediaUrl, metadata) {
+                override fun success(invocation: ActionInvocation<out Service<*, *>>?) {
+                    Log.d(TAG, "SetAVTransportURI successful")
+
+                    val playCallback = object : Play(avTransportService) {
+                        override fun success(invocation: ActionInvocation<out Service<*, *>>?) {
+                            runOnUiThread {
+                                val deviceName = device.details.friendlyName
+                                saveCastingState(device.identity.udn.toString(), mediaTitle, deviceName)
+
+                                val serviceIntent = Intent(this@MainActivity, PlaybackService::class.java).apply {
+                                    action = PlaybackService.ACTION_START
+                                    putExtra("deviceUdn", device.identity.udn.toString())
+                                    putExtra("mediaTitle", mediaTitle)
+                                    putExtra("deviceName", deviceName)
+                                }
+                                ContextCompat.startForegroundService(this@MainActivity, serviceIntent)
+
+                                val activityIntent = Intent(this@MainActivity, PlaybackActivity::class.java)
+                                startActivity(activityIntent)
+                            }
+                        }
+                        override fun failure(invocation: ActionInvocation<out Service<*, *>>?, op: UpnpResponse?, defaultMsg: String?) {
+                            Log.w(TAG, "Play failed: $defaultMsg")
+                            runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.cast_failed, defaultMsg), Toast.LENGTH_LONG).show() }
+                        }
+                    }
+                    controlPoint.execute(playCallback)
+                }
+                override fun failure(invocation: ActionInvocation<out Service<*, *>>?, op: UpnpResponse?, defaultMsg: String?) {
+                    Log.w(TAG, "Set URI failed: $defaultMsg")
+                    runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.set_uri_failed, defaultMsg), Toast.LENGTH_LONG).show() }
+                }
+            }
+            controlPoint.execute(setUriCallback)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            when {
+                ContextCompat.checkSelfPermission(
+                    this, Manifest.permission.POST_NOTIFICATIONS
+                ) == PackageManager.PERMISSION_GRANTED -> {
+                    castAction()
+                }
+                shouldShowRequestPermissionRationale(Manifest.permission.POST_NOTIFICATIONS) -> {
+                    pendingCastAction = castAction
+                    requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+                else -> {
+                    pendingCastAction = castAction
+                    requestNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }
+        } else {
+            castAction()
+        }
+    }
+    private fun castMedia(mediaUri: Uri, device: Device<*, *, *>) {
+        val localIp = getLocalIpAddress()
+        if (localIp == null) {
+            Toast.makeText(this, getString(R.string.failed_to_get_ip), Toast.LENGTH_LONG).show()
+            return
+        }
+        val mediaTitle = getFileName(mediaUri)
+        val mediaUrl = "http://$localIp:${mediaServer?.listeningPort}/${MediaServer.URI_PATH}"
+        mediaServer?.setMediaUri(mediaUri)
+        val metadata = generateMetadata(mediaUrl, mediaUri)
+        executeCast(mediaUrl, metadata, device, mediaTitle)
+    }
+    private fun castMedia(url: String, device: Device<*, *, *>) {
+        val metadata = generateMetadataForUrl(url)
+        val mediaTitle = getFileName(Uri.parse(url))
+        executeCast(url, metadata, device, mediaTitle)
+    }
+    private fun isCasting(): Boolean {
+        val sharedPreferences = getSharedPreferences(PlaybackActivity.CASTING_STATE_PREFS, Context.MODE_PRIVATE)
+        return sharedPreferences.getBoolean(PlaybackActivity.KEY_IS_CASTING, false)
+    }
+    private fun saveCastingState(udn: String, mediaTitle: String, deviceName: String) {
+        val sharedPreferences = getSharedPreferences(PlaybackActivity.CASTING_STATE_PREFS, Context.MODE_PRIVATE)
+        with(sharedPreferences.edit()) {
+            putBoolean(PlaybackActivity.KEY_IS_CASTING, true)
+            putString(PlaybackActivity.KEY_DEVICE_UDN, udn)
+            putString(PlaybackActivity.KEY_MEDIA_TITLE, mediaTitle)
+            putString(PlaybackActivity.KEY_DEVICE_NAME, deviceName)
+            apply()
+        }
+        Log.d(TAG, "Casting state saved for device UDN: $udn")
+    }
+    private fun handleMediaSelection(uri: Uri?) {
+        if (uri != null) {
+            dismissBottomSheet()
+            latestSelectedDevice?.let { device -> castMedia(uri, device) }
+        } else {
+            Log.d(TAG, "Media selection was cancelled.")
+        }
+    }
     private fun searchDevices() {
         if (upnpService == null) {
             swipeRefreshLayout.isRefreshing = false
@@ -195,36 +313,21 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         deviceListAdapter.clear()
         upnpService?.registry?.removeAllRemoteDevices()
         upnpService?.controlPoint?.search()
-
         Handler(Looper.getMainLooper()).postDelayed({
             if (swipeRefreshLayout.isRefreshing) {
                 swipeRefreshLayout.isRefreshing = false
             }
         }, 10000)
     }
-
     override fun onCastUrl(url: String) {
         Log.d(TAG, "Casting URL: $url")
         dismissBottomSheet()
         latestSelectedDevice?.let { castMedia(url, it) }
     }
-
-    override fun onPickVideo() {
-        checkAndRequestPermissions(videoPermissions, ::openVideoPicker)
-    }
-
-    override fun onPickAudio() {
-        checkAndRequestPermissions(audioFilePermissions, ::openMusicPicker)
-    }
-
-    override fun onPickImage() {
-        checkAndRequestPermissions(imagePermissions, ::openImagePicker)
-    }
-
-    override fun onPickFile() {
-        checkAndRequestPermissions(audioFilePermissions, ::openFilePicker)
-    }
-
+    override fun onPickVideo() { checkAndRequestPermissions(videoPermissions, ::openVideoPicker) }
+    override fun onPickAudio() { checkAndRequestPermissions(audioFilePermissions, ::openMusicPicker) }
+    override fun onPickImage() { checkAndRequestPermissions(imagePermissions, ::openImagePicker) }
+    override fun onPickFile() { checkAndRequestPermissions(audioFilePermissions, ::openFilePicker) }
     private fun checkAndRequestPermissions(permissions: Array<String>, onGranted: () -> Unit) {
         val permissionsNotGranted = permissions.filter {
             ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
@@ -236,15 +339,8 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             requestPermissionLauncher.launch(permissionsNotGranted.toTypedArray())
         }
     }
-
-    private fun openImagePicker() {
-        imagePickerLauncher.launch("image/*")
-    }
-
-    private fun openVideoPicker() {
-        videoPickerLauncher.launch("video/*")
-    }
-
+    private fun openImagePicker() { imagePickerLauncher.launch("image/*") }
+    private fun openVideoPicker() { videoPickerLauncher.launch("video/*") }
     private fun openMusicPicker() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             type = "audio/*"
@@ -252,7 +348,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }
         musicPickerLauncher.launch(intent)
     }
-
     private fun openFilePicker() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             type = "*/*"
@@ -260,53 +355,18 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }
         filePickerLauncher.launch(intent)
     }
-
-    private fun castMedia(mediaUri: Uri, device: Device<*, *, *>) {
-        val localIp = getLocalIpAddress()
-        if (localIp == null) {
-            Toast.makeText(this, getString(R.string.failed_to_get_ip), Toast.LENGTH_LONG).show()
-            return
-        }
-        val mediaUrl = "http://$localIp:${mediaServer?.listeningPort}/${MediaServer.URI_PATH}"
-        mediaServer?.setMediaUri(mediaUri)
-        val metadata = generateMetadata(mediaUrl, mediaUri)
-        executeCast(mediaUrl, metadata, device)
-    }
-
-    private fun castMedia(url: String, device: Device<*, *, *>) {
-        val metadata = generateMetadataForUrl(url)
-        executeCast(url, metadata, device)
-    }
-
-    private fun executeCast(mediaUrl: String, metadata: String, device: Device<*, *, *>) {
-        val controlPoint = upnpService?.controlPoint ?: return
-        val avTransportService = device.findService(UDAServiceType("AVTransport")) ?: run {
-            Toast.makeText(this, getString(R.string.device_not_support_avtransport), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val setUriCallback = object : SetAVTransportURI(avTransportService, mediaUrl, metadata) {
-            override fun success(invocation: ActionInvocation<out Service<*, *>>?) {
-                Log.d(TAG, "SetAVTransportURI successful")
-                val playCallback = object : Play(avTransportService) {
-                    override fun success(invocation: ActionInvocation<out Service<*, *>>?) {
-                        runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.cast_success), Toast.LENGTH_SHORT).show() }
-                    }
-                    override fun failure(invocation: ActionInvocation<out Service<*, *>>?, op: UpnpResponse?, defaultMsg: String?) {
-                        Log.w(TAG, "Play failed: $defaultMsg")
-                        runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.cast_failed, defaultMsg), Toast.LENGTH_LONG).show() }
-                    }
+    private fun getFileName(uri: Uri): String {
+        if ("content" == uri.scheme) {
+            contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex != -1 && cursor.moveToFirst()) {
+                    return cursor.getString(nameIndex)
                 }
-                controlPoint.execute(playCallback)
             }
-            override fun failure(invocation: ActionInvocation<out Service<*, *>>?, op: UpnpResponse?, defaultMsg: String?) {
-                Log.w(TAG, "Set URI failed: $defaultMsg")
-                runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.set_uri_failed, defaultMsg), Toast.LENGTH_LONG).show() }
-            }
+            return "Local File"
         }
-        controlPoint.execute(setUriCallback)
+        return uri.lastPathSegment ?: "Online Media"
     }
-
     private fun generateMetadata(mediaUrl: String, mediaUri: Uri): String {
         val mimeType = contentResolver.getType(mediaUri) ?: "application/octet-stream"
         val fileSize = getFileSize(mediaUri)
@@ -326,7 +386,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             ""
         }
     }
-
     private fun generateMetadataForUrl(url: String): String {
         val res = Res(ProtocolInfo("http-get:*:video/mp4:*"), null, url)
         val videoItem = VideoItem("1", "0", "Online Video", "", res)
@@ -337,7 +396,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             ""
         }
     }
-
     override fun onDestroy() {
         super.onDestroy()
         Log.d(TAG, "MainActivity onDestroy")
@@ -353,7 +411,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             }
         }
     }
-
     private fun getLocalIpAddress(): String? {
         val wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         @Suppress("DEPRECATION")
@@ -367,7 +424,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             ).hostAddress
         } catch (e: Exception) { null }
     }
-
     private fun getFileSize(uri: Uri): Long {
         contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val sizeIndex = cursor.getColumnIndex(OpenableColumns.SIZE)
@@ -377,17 +433,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }
         return 0
     }
-
-    private fun getFileName(uri: Uri): String {
-        contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (nameIndex != -1 && cursor.moveToFirst()) {
-                return cursor.getString(nameIndex)
-            }
-        }
-        return "unknown"
-    }
-
     private fun dismissBottomSheet() {
         supportFragmentManager.findFragmentByTag("CastOptionsBottomSheet")?.let { fragment ->
             if (fragment is CastOptionsBottomSheet) {
@@ -395,7 +440,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             }
         }
     }
-
     inner class BrowseRegistryListener : DefaultRegistryListener() {
         override fun remoteDeviceAdded(registry: Registry, device: RemoteDevice) {
             if (device.type.type == "MediaRenderer") {

@@ -8,14 +8,19 @@
     <string name="shortcut_settings_long_label">打开应用设置</string>
 
     <!-- Main Activity -->
+    <string name="dialog_no">否</string>
+    <string name="stop">停止</string>
+    <string name="pause">暂停</string>
     <string name="searching_devices">正在搜索…</string>
     <string name="device_selected">已选择: %1$s</string>
     <string name="permissions_needed">需要媒体权限才能选择文件。</string>
+    <string name="notification_permissions_success">已授予权限，请重试</string>
     <string name="media_type_choice_title">选择媒体类型</string>
 
     <!-- Media Type Choices -->
-    <string name="media_type_image_video">图片 / 视频</string>
-    <string name="media_type_music">音乐</string>
+    <string name="media_type_image">图片</string>
+    <string name="media_type_music">文件</string>
+    <string name="media_type_file">文件</string>
     <string name="dialog_cancel">取消</string>
 
     <!-- Casting Status -->
@@ -43,4 +48,18 @@
         <item>活力 (绿色)</item>
         <item>优雅 (紫色)</item>
     </string-array>
+    <string name="dialog_yes">是</string>
+    <string name="notification_permissions_needed">需要通知权限以确保稳定的后台播放</string>
+    <string name="media_type_video">视频</string>
+    <string name="cast_options_editor_hine">输入视频链接</string>
+    <string name="cast_options_description">播放链接</string>
+    <string name="cast_options_dialog_title">关闭当前投屏？</string>
+    <string name="cast_options_dialog_message">您目前正在投屏到另一台设备。是否要中断投屏并开始新的投射？</string>
+    <string name="cast_options_dialog_closed">之前的投屏已停止</string>
+    <string name="volume">音量</string>
+    <string name="play">播放</string>
+    <string name="cast_playback_isplaying">正在播放</string>
+    <string name="cast_playback_unknown">未知设备</string>
+    <string name="cast_playback_casting">投射到: %1$s</string>
+    <string name="cast_playback_lost_connection">设备已断开连接</string>
 </resources>

@@ -7,15 +7,32 @@
     <string name="shortcut_settings_short_label">Settings</string>
     <string name="shortcut_settings_long_label">Open App Settings</string>
 
+    <!-- App Dialog -->
+    <string name="dialog_yes">Yes</string>
+    <string name="dialog_no">No</string>
+
+    <!-- App Word -->
+    <string name="volume">Volume</string>
+    <string name="loading">loading…</string>
+
+    <!-- Play Status -->
+    <string name="play">Play</string>
+    <string name="stop">Stop</string>
+    <string name="pause">Pause</string>
+
     <!-- Main Activity -->
     <string name="searching_devices">Searching…</string>
     <string name="device_selected">Selected: %1$s</string>
     <string name="permissions_needed">Media permissions are required to select files.</string>
+    <string name="notification_permissions_needed">Notification permission is required to ensure stable background playback</string>
+    <string name="notification_permissions_success">Permission has been granted, please try again</string>
     <string name="media_type_choice_title">Select Media Type</string>
 
     <!-- Media Type Choices -->
-    <string name="media_type_image_video">Image / Video</string>
+    <string name="media_type_video">Video</string>
+    <string name="media_type_image">Image</string>
     <string name="media_type_music">Music</string>
+    <string name="media_type_file">File</string>
     <string name="dialog_cancel">Cancel</string>
 
     <!-- Casting Status -->
@@ -43,6 +60,24 @@
         <item>Green</item>
         <item>Purple</item>
     </string-array>
+
+    <!-- CastOptionsBottomSheet -->
+    <string name="cast_options_editor_hine">Input online video Link</string>
+    <string name="cast_options_description">Play online video Link</string>
+
+    <!-- CastOptionsBottomSheet Dialog -->
+    <string name="cast_options_dialog_title">Close the current screen projection?</string>
+    <string name="cast_options_dialog_message">You are currently casting to another device. Do you want to interrupt it and start a new casting?</string>
+    <string name="cast_options_dialog_closed">The previous screen projection has been stopped</string>
+
+    <!-- Playback Page -->
+    <string name="cast_playback_isplaying">Playing</string>
+    <string name="cast_playback_unknown">unknown device</string>
+    <string name="cast_playback_casting">casting to: %1$s</string>
+    <string name="cast_playback_lost_connection">The device is disconnected</string>
+
+
+
 </resources>
 
   

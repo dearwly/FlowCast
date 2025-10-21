@@ -3,7 +3,6 @@
     android:color="?attr/colorControlHighlight">
     <item>
         <shape android:shape="rectangle">
-            <!-- 按钮的背景色，使用比主卡片略深的颜色 -->
             <solid android:color="?attr/colorSurfaceVariant" />
             <corners android:radius="16dp" />
         </shape>

@@ -7,7 +7,6 @@
     android:padding="16dp"
     android:background="@drawable/dialog_background">
 
-    <!-- 1. 在线链接输入区域 -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -26,7 +25,7 @@
                 android:id="@+id/et_url"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:hint="输入在线视频直链"
+                android:hint="@string/cast_options_editor_hine"
                 android:inputType="textUri"/>
         </com.google.android.material.textfield.TextInputLayout>
 
@@ -40,18 +39,16 @@
             android:src="@drawable/ic_play"
             app:tint="?attr/colorPrimary"
             android:visibility="gone"
-            android:contentDescription="播放链接" />
+            android:contentDescription="@string/cast_options_description" />
 
     </FrameLayout>
 
-    <!-- 2. 本地媒体选择按钮 -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:weightSum="4">
 
-        <!-- 视频 -->
         <LinearLayout
             android:id="@+id/btn_local_video"
             android:layout_width="0dp"
@@ -73,12 +70,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="视频"
+                android:text="@string/media_type_video"
                 android:textAppearance="?attr/textAppearanceLabelMedium"
                 android:textColor="?attr/colorOnSurfaceVariant"/>
         </LinearLayout>
 
-        <!-- 音频 -->
         <LinearLayout
             android:id="@+id/btn_local_audio"
             android:layout_width="0dp"
@@ -100,12 +96,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="音频"
+                android:text="@string/media_type_music"
                 android:textAppearance="?attr/textAppearanceLabelMedium"
                 android:textColor="?attr/colorOnSurfaceVariant"/>
         </LinearLayout>
 
-        <!-- 图片 -->
         <LinearLayout
             android:id="@+id/btn_local_image"
             android:layout_width="0dp"
@@ -127,12 +122,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="图片"
+                android:text="@string/media_type_image"
                 android:textAppearance="?attr/textAppearanceLabelMedium"
                 android:textColor="?attr/colorOnSurfaceVariant"/>
         </LinearLayout>
 
-        <!-- 文件 -->
         <LinearLayout
             android:id="@+id/btn_local_file"
             android:layout_width="0dp"
@@ -153,7 +147,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:text="文件"
+                android:text="@string/media_type_file"
                 android:textAppearance="?attr/textAppearanceLabelMedium"
                 android:textColor="?attr/colorOnSurfaceVariant"/>
         </LinearLayout>

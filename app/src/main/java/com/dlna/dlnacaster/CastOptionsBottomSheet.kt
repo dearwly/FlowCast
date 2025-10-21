@@ -13,7 +13,6 @@ import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 
 class CastOptionsBottomSheet : BottomSheetDialogFragment() {
 
-    // 1. 定义一个接口，让 Activity 实现
     interface CastOptionsListener {
         fun onCastUrl(url: String)
         fun onPickVideo()
@@ -26,7 +25,6 @@ class CastOptionsBottomSheet : BottomSheetDialogFragment() {
 
     override fun onAttach(context: Context) {
         super.onAttach(context)
-        // 将 Activity 转换为我们的监听器
         if (context is CastOptionsListener) {
             listener = context
         } else {
