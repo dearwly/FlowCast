@@ -50,10 +50,9 @@ import org.fourthline.cling.support.model.item.MusicTrack
 import org.fourthline.cling.support.model.item.VideoItem
 import java.net.InetAddress
 
-// 1. 实现新的接口
 class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsListener {
 
-    private val TAG = "DlnaCasterApp_CLING"
+    private val TAG = getString(R.string.app_name)
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var devicesListView: ListView
     private lateinit var deviceListAdapter: ArrayAdapter<DeviceDisplay>
@@ -63,67 +62,69 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
     private var multicastLock: WifiManager.MulticastLock? = null
     private var latestSelectedDevice: Device<*, *, *>? = null
 
-    // 2. 根据媒体类型分离权限
-    private val imageVideoPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        arrayOf(Manifest.permission.READ_MEDIA_IMAGES, Manifest.permission.READ_MEDIA_VIDEO)
+    private val imagePermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        arrayOf(Manifest.permission.READ_MEDIA_IMAGES)
+    } else {
+        arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
+    }
+    private val videoPermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        arrayOf(Manifest.permission.READ_MEDIA_VIDEO)
     } else {
         arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
     private val audioFilePermissions = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-        arrayOf(Manifest.permission.READ_MEDIA_AUDIO) // Android 13+ 需要专门的音频权限
+        arrayOf(Manifest.permission.READ_MEDIA_AUDIO)
     } else {
         arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
 
     // --- Activity Result Launchers ---
 
-    // 通用的权限请求启动器
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<Array<String>>
 
-    // 用于图片和视频的半屏选择器
-    private val imageVideoPickerLauncher =
-        registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
-            if (result.resultCode == Activity.RESULT_OK) {
-                result.data?.data?.let { uri ->
-                    latestSelectedDevice?.let { device -> castMedia(uri, device) }
-                }
-            }
+    private val imagePickerLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            handleMediaSelection(uri)
         }
 
-    // 用于音乐的全屏文件选择器
+    private val videoPickerLauncher =
+        registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+            handleMediaSelection(uri)
+        }
+
     private val musicPickerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
-                result.data?.data?.let { uri ->
-                    latestSelectedDevice?.let { device -> castMedia(uri, device) }
-                }
+                handleMediaSelection(result.data?.data)
             }
         }
 
-    // 3. 为“文件”按钮添加一个新的选择器
     private val filePickerLauncher =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
             if (result.resultCode == Activity.RESULT_OK) {
-                result.data?.data?.let { uri ->
-                    latestSelectedDevice?.let { device -> castMedia(uri, device) }
-                }
+                handleMediaSelection(result.data?.data)
             }
         }
+
+    private fun handleMediaSelection(uri: Uri?) {
+        uri?.let {
+            latestSelectedDevice?.let { device -> castMedia(it, device) }
+        }
+    }
 
     // --- Service Connection ---
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             upnpService = service as AndroidUpnpService
-            Log.e(TAG, "--- CLING Service Connected! ---")
+            Log.i(TAG, "Cling service connected.")
             registryListener = BrowseRegistryListener()
             upnpService?.registry?.addListener(registryListener)
-
             swipeRefreshLayout.isRefreshing = true
             searchDevices()
         }
         override fun onServiceDisconnected(className: ComponentName) {
             upnpService = null
-            Log.e(TAG, "--- CLING Service Disconnected ---")
+            Log.i(TAG, "Cling service disconnected.")
         }
     }
 
@@ -131,11 +132,9 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         super.onCreate(savedInstanceState)
         supportRequestWindowFeature(Window.FEATURE_NO_TITLE)
         setContentView(R.layout.activity_main)
-        Log.e(TAG, "--- MainActivity onCreate() ---")
+        Log.d(TAG, "MainActivity onCreate")
 
-        // 4. 初始化通用的权限请求启动器
         requestPermissionLauncher = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            // 简单地检查是否有任何权限被授予，然后让用户重试
             if (permissions.any { it.value }) {
                 Toast.makeText(this, "权限已授予，请重试操作", Toast.LENGTH_SHORT).show()
             } else {
@@ -157,11 +156,10 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             setReferenceCounted(true)
             acquire()
         }
-        Log.e(TAG, "--- Multicast Lock Acquired ---")
 
         setupUI()
 
-        Log.e(TAG, "--- Binding to official Cling Service... ---")
+        Log.d(TAG, "Binding to official Cling Service...")
         val intent = Intent(this, AndroidUpnpServiceImpl::class.java)
         bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
 
@@ -176,7 +174,7 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         devicesListView.adapter = deviceListAdapter
 
         swipeRefreshLayout.setOnRefreshListener {
-            Log.e(TAG, "--- ACTION: Pull to refresh triggered ---")
+            Log.d(TAG, "Pull to refresh triggered.")
             searchDevices()
         }
 
@@ -184,8 +182,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             val deviceDisplay = deviceListAdapter.getItem(position) ?: return@setOnItemClickListener
             latestSelectedDevice = deviceDisplay.device
             Toast.makeText(this, getString(R.string.device_selected, deviceDisplay.device.displayString), Toast.LENGTH_SHORT).show()
-
-            // 5. 显示新的 Bottom Sheet 弹窗
             CastOptionsBottomSheet().show(supportFragmentManager, "CastOptionsBottomSheet")
         }
     }
@@ -206,7 +202,7 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }, 10000)
     }
 
-    // --- 6. 实现接口和新的权限/选择器逻辑 ---
+    // --- CastOptionsListener Implementation ---
 
     override fun onCastUrl(url: String) {
         Log.d(TAG, "Casting URL: $url")
@@ -214,7 +210,7 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
     }
 
     override fun onPickVideo() {
-        checkAndRequestPermissions(imageVideoPermissions, ::openImageVideoPicker)
+        checkAndRequestPermissions(videoPermissions, ::openVideoPicker)
     }
 
     override fun onPickAudio() {
@@ -222,13 +218,14 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
     }
 
     override fun onPickImage() {
-        checkAndRequestPermissions(imageVideoPermissions, ::openImageVideoPicker)
+        checkAndRequestPermissions(imagePermissions, ::openImagePicker)
     }
 
     override fun onPickFile() {
-        // 选择任意文件也需要存储权限
         checkAndRequestPermissions(audioFilePermissions, ::openFilePicker)
     }
+
+    // --- Permission and Picker Logic ---
 
     private fun checkAndRequestPermissions(permissions: Array<String>, onGranted: () -> Unit) {
         val permissionsNotGranted = permissions.filter {
@@ -242,13 +239,12 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }
     }
 
-    private fun openImageVideoPicker() {
-        val intent = Intent(Intent.ACTION_GET_CONTENT).apply {
-            type = "*/*"
-            addCategory(Intent.CATEGORY_OPENABLE)
-            putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("image/*", "video/*"))
-        }
-        imageVideoPickerLauncher.launch(intent)
+    private fun openImagePicker() {
+        imagePickerLauncher.launch("image/*")
+    }
+
+    private fun openVideoPicker() {
+        videoPickerLauncher.launch("video/*")
     }
 
     private fun openMusicPicker() {
@@ -267,9 +263,8 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         filePickerLauncher.launch(intent)
     }
 
-    // --- 7. 重载投屏和元数据方法以支持在线链接 ---
+    // --- Casting Logic ---
 
-    // 投射本地 Uri
     private fun castMedia(mediaUri: Uri, device: Device<*, *, *>) {
         val localIp = getLocalIpAddress()
         if (localIp == null) {
@@ -282,13 +277,11 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         executeCast(mediaUrl, metadata, device)
     }
 
-    // 投射在线 URL
     private fun castMedia(url: String, device: Device<*, *, *>) {
         val metadata = generateMetadataForUrl(url)
         executeCast(url, metadata, device)
     }
 
-    // 统一的执行函数
     private fun executeCast(mediaUrl: String, metadata: String, device: Device<*, *, *>) {
         val controlPoint = upnpService?.controlPoint ?: return
         val avTransportService = device.findService(UDAServiceType("AVTransport")) ?: run {
@@ -304,33 +297,34 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
                         runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.cast_success), Toast.LENGTH_SHORT).show() }
                     }
                     override fun failure(invocation: ActionInvocation<out Service<*, *>>?, op: UpnpResponse?, defaultMsg: String?) {
+                        Log.w(TAG, "Play failed: $defaultMsg")
                         runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.cast_failed, defaultMsg), Toast.LENGTH_LONG).show() }
                     }
                 }
                 controlPoint.execute(playCallback)
             }
             override fun failure(invocation: ActionInvocation<out Service<*, *>>?, op: UpnpResponse?, defaultMsg: String?) {
+                Log.w(TAG, "Set URI failed: $defaultMsg")
                 runOnUiThread { Toast.makeText(this@MainActivity, getString(R.string.set_uri_failed, defaultMsg), Toast.LENGTH_LONG).show() }
             }
         }
         controlPoint.execute(setUriCallback)
     }
 
-    // 为本地 Uri 生成元数据
+    // --- Metadata Generation ---
+
     private fun generateMetadata(mediaUrl: String, mediaUri: Uri): String {
         val mimeType = contentResolver.getType(mediaUri) ?: "application/octet-stream"
         val fileSize = getFileSize(mediaUri)
         val fileName = getFileName(mediaUri)
         val res = Res(ProtocolInfo("http-get:*:$mimeType:*"), fileSize, mediaUrl)
         val didlContent = DIDLContent()
-
         when {
             mimeType.startsWith("video/") -> didlContent.addItem(VideoItem("1", "0", fileName, "", res))
             mimeType.startsWith("image/") -> didlContent.addItem(ImageItem("1", "0", fileName, "", res))
             mimeType.startsWith("audio/") -> didlContent.addItem(MusicTrack("1", "0", fileName, "", "", "", res))
-            else -> didlContent.addItem(VideoItem("1", "0", fileName, "", res)) // 对于未知文件，默认当做视频尝试
+            else -> didlContent.addItem(VideoItem("1", "0", fileName, "", res)) // Fallback for general files
         }
-
         return try {
             DIDLParser().generate(didlContent, false)
         } catch (e: Exception) {
@@ -339,9 +333,7 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }
     }
 
-    // 为在线 URL 生成元数据
     private fun generateMetadataForUrl(url: String): String {
-        // 对于在线链接，我们不知道文件大小和确切MIME类型，只能提供最基础的信息
         val res = Res(ProtocolInfo("http-get:*:video/mp4:*"), null, url)
         val videoItem = VideoItem("1", "0", "Online Video", "", res)
         return try {
@@ -352,20 +344,20 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }
     }
 
-    // --- 其他辅助方法 ---
+    // --- Other Helper Methods ---
 
     override fun onDestroy() {
         super.onDestroy()
-        Log.e(TAG, "--- MainActivity onDestroy() ---")
+        Log.d(TAG, "MainActivity onDestroy")
         multicastLock?.takeIf { it.isHeld }?.release()
         mediaServer?.stop()
         if (upnpService != null) {
             try {
                 upnpService!!.registry.removeListener(registryListener)
                 unbindService(serviceConnection)
-                Log.e(TAG, "Successfully unbound Cling Service.")
+                Log.i(TAG, "Successfully unbound Cling Service.")
             } catch (ex: Exception) {
-                Log.e(TAG, "Error during unbind/removeListener: ${ex.message}")
+                Log.e(TAG, "Error during unbind/removeListener", ex)
             }
         }
     }
@@ -407,20 +399,20 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
     inner class BrowseRegistryListener : DefaultRegistryListener() {
         override fun remoteDeviceAdded(registry: Registry, device: RemoteDevice) {
             if (device.type.type == "MediaRenderer") {
-                Log.e(TAG, "--- DEVICE DISCOVERED: ${device.displayString} ---")
+                Log.i(TAG, "Device discovered: ${device.displayString}")
                 deviceAdded(device)
             }
         }
         override fun remoteDeviceRemoved(registry: Registry, device: RemoteDevice) {
-            Log.e(TAG, "--- DEVICE REMOVED: ${device.displayString} ---")
+            Log.i(TAG, "Device removed: ${device.displayString}")
             deviceRemoved(device)
         }
         override fun localDeviceAdded(registry: Registry, device: LocalDevice) {
-            Log.e(TAG, "--- LOCAL DEVICE ADDED: ${device.displayString} ---")
+            Log.i(TAG, "Local device added: ${device.displayString}")
             deviceAdded(device)
         }
         override fun localDeviceRemoved(registry: Registry, device: LocalDevice) {
-            Log.e(TAG, "--- LOCAL DEVICE REMOVED: ${device.displayString} ---")
+            Log.i(TAG, "Local device removed: ${device.displayString}")
             deviceRemoved(device)
         }
         fun deviceAdded(device: Device<*, *, *>) {
