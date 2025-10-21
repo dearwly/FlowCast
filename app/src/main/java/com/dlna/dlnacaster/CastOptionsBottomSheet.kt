@@ -51,31 +51,24 @@ class CastOptionsBottomSheet : BottomSheetDialogFragment() {
         val btnImage = view.findViewById<LinearLayout>(R.id.btn_local_image)
         val btnFile = view.findViewById<LinearLayout>(R.id.btn_local_file)
 
-        // 监听文本框变化，以显示/隐藏播放按钮
         etUrl.addTextChangedListener { text ->
             btnPlayUrl.visibility = if (text.isNullOrBlank()) View.GONE else View.VISIBLE
         }
 
-        // 设置所有按钮的点击事件
         btnPlayUrl.setOnClickListener {
             listener?.onCastUrl(etUrl.text.toString())
-            dismiss() // 关闭弹窗
         }
         btnVideo.setOnClickListener {
             listener?.onPickVideo()
-            dismiss()
         }
         btnAudio.setOnClickListener {
             listener?.onPickAudio()
-            dismiss()
         }
         btnImage.setOnClickListener {
             listener?.onPickImage()
-            dismiss()
         }
         btnFile.setOnClickListener {
             listener?.onPickFile()
-            dismiss()
         }
     }
 

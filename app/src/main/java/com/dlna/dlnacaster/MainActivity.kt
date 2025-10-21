@@ -52,7 +52,7 @@ import java.net.InetAddress
 
 class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsListener {
 
-    private val TAG = getString(R.string.app_name)
+    private val TAG = "FlowCastApp"
     private lateinit var swipeRefreshLayout: SwipeRefreshLayout
     private lateinit var devicesListView: ListView
     private lateinit var deviceListAdapter: ArrayAdapter<DeviceDisplay>
@@ -77,8 +77,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
     } else {
         arrayOf(Manifest.permission.READ_EXTERNAL_STORAGE)
     }
-
-    // --- Activity Result Launchers ---
 
     private lateinit var requestPermissionLauncher: ActivityResultLauncher<Array<String>>
 
@@ -106,13 +104,16 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             }
         }
 
+    // 修复点: 只有在 uri 不为 null 时才关闭弹窗
     private fun handleMediaSelection(uri: Uri?) {
-        uri?.let {
-            latestSelectedDevice?.let { device -> castMedia(it, device) }
+        if (uri != null) {
+            dismissBottomSheet()
+            latestSelectedDevice?.let { device -> castMedia(uri, device) }
+        } else {
+            Log.d(TAG, "Media selection was cancelled.")
         }
     }
 
-    // --- Service Connection ---
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(className: ComponentName, service: IBinder) {
             upnpService = service as AndroidUpnpService
@@ -202,10 +203,9 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }, 10000)
     }
 
-    // --- CastOptionsListener Implementation ---
-
     override fun onCastUrl(url: String) {
         Log.d(TAG, "Casting URL: $url")
+        dismissBottomSheet()
         latestSelectedDevice?.let { castMedia(url, it) }
     }
 
@@ -224,8 +224,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
     override fun onPickFile() {
         checkAndRequestPermissions(audioFilePermissions, ::openFilePicker)
     }
-
-    // --- Permission and Picker Logic ---
 
     private fun checkAndRequestPermissions(permissions: Array<String>, onGranted: () -> Unit) {
         val permissionsNotGranted = permissions.filter {
@@ -262,8 +260,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         }
         filePickerLauncher.launch(intent)
     }
-
-    // --- Casting Logic ---
 
     private fun castMedia(mediaUri: Uri, device: Device<*, *, *>) {
         val localIp = getLocalIpAddress()
@@ -311,8 +307,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
         controlPoint.execute(setUriCallback)
     }
 
-    // --- Metadata Generation ---
-
     private fun generateMetadata(mediaUrl: String, mediaUri: Uri): String {
         val mimeType = contentResolver.getType(mediaUri) ?: "application/octet-stream"
         val fileSize = getFileSize(mediaUri)
@@ -323,7 +317,7 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             mimeType.startsWith("video/") -> didlContent.addItem(VideoItem("1", "0", fileName, "", res))
             mimeType.startsWith("image/") -> didlContent.addItem(ImageItem("1", "0", fileName, "", res))
             mimeType.startsWith("audio/") -> didlContent.addItem(MusicTrack("1", "0", fileName, "", "", "", res))
-            else -> didlContent.addItem(VideoItem("1", "0", fileName, "", res)) // Fallback for general files
+            else -> didlContent.addItem(VideoItem("1", "0", fileName, "", res))
         }
         return try {
             DIDLParser().generate(didlContent, false)
@@ -343,8 +337,6 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             ""
         }
     }
-
-    // --- Other Helper Methods ---
 
     override fun onDestroy() {
         super.onDestroy()
@@ -394,6 +386,14 @@ class MainActivity : AppCompatActivity(), CastOptionsBottomSheet.CastOptionsList
             }
         }
         return "unknown"
+    }
+
+    private fun dismissBottomSheet() {
+        supportFragmentManager.findFragmentByTag("CastOptionsBottomSheet")?.let { fragment ->
+            if (fragment is CastOptionsBottomSheet) {
+                fragment.dismiss()
+            }
+        }
     }
 
     inner class BrowseRegistryListener : DefaultRegistryListener() {
