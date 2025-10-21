@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ripple xmlns:android="http://schemas.android.com/apk/res/android"
+    android:color="?attr/colorControlHighlight">
+    <item>
+        <shape android:shape="rectangle">
+            <!-- 按钮的背景色，使用比主卡片略深的颜色 -->
+            <solid android:color="?attr/colorSurfaceVariant" />
+            <corners android:radius="16dp" />
+        </shape>
+    </item>
+</ripple>
